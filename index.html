@@ -3,21 +3,65 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Play Sushi Balloon Chef — Luz2all</title>
-  <meta name="description" content="Play Sushi Balloon Chef — a tiny static game by Luz2all." />
+  <title>Luz2all Games</title>
   <style>
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:#071224;color:#eaf3ff;display:flex;align-items:center;justify-content:center}
-    .box{max-width:720px;padding:28px;text-align:center}
-    a.button{display:inline-block;padding:12px 18px;border-radius:10px;background:linear-gradient(90deg,#ff7b7b,#ffb86b);color:#071226;font-weight:700;text-decoration:none;margin-top:16px}
-    .muted{color:#9aa6b2;margin-top:12px}
+    :root{--bg:#0f1724;--card:#071827;--accent:#26a69a;--muted:#94a3b8;--text:#e6eef6}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    body{background:linear-gradient(180deg,#071025,#081430);color:var(--text);display:flex;align-items:center;justify-content:center;padding:24px}
+    .wrap{width:100%;max-width:980px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    h1{margin:0;font-size:20px}
+    p.lead{color:var(--muted);margin:8px 0 18px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+    .card{background:var(--card);padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+    .card h3{margin:0 0 8px}
+    .card p{margin:0 0 12px;color:var(--muted)}
+    .card a{display:inline-block;padding:8px 10px;border-radius:8px;background:var(--accent);color:#042022;text-decoration:none;font-weight:700}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    .meta{font-size:13px;color:var(--muted);margin-top:8px}
   </style>
 </head>
 <body>
-  <div class="box">
-    <h1>🍣 Sushi Balloon Chef</h1>
-    <p class="muted">A tiny static game by Luz2all. Click below to play — runs entirely in your browser.</p>
-    <p><a class="button" href="/sushi-game.html">Play Sushi Balloon Chef</a></p>
-    <p class="muted">If you still see a 404, open <code>Settings → Pages</code> for this repository and ensure the source is set to the <strong>main branch (root)</strong>.</p>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Luz2all Games</h1>
+        <div class="meta">A small collection of browser games published by Luz2all</div>
+      </div>
+      <div style="text-align:right">
+        <div class="meta">Visit each game to play online</div>
+      </div>
+    </header>
+
+    <p class="lead">Click any game below to open it in a new tab. All games are static pages hosted on GitHub Pages and work in modern desktop and mobile browsers.</p>
+
+    <div class="grid">
+      <div class="card">
+        <h3>2048</h3>
+        <p>A faithful single-file clone of the classic 2048 sliding-tile puzzle. Merge tiles with the same number to reach 2048. Controls: arrow keys or swipe.</p>
+        <a href="/2048.html" target="_blank" rel="noopener">Play 2048</a>
+        <div class="meta">URL: /2048.html</div>
+      </div>
+
+      <div class="card">
+        <h3>Water Bottle Flip</h3>
+        <p>A physics-based bottle flip game. Hold to charge a flip and release to try to land the bottle upright. Swipe and touch controls supported. Progress (attempts/successes) is stored locally.</p>
+        <a href="/waterbottle/" target="_blank" rel="noopener">Play Water Bottle</a>
+        <div class="meta">URL: /waterbottle/</div>
+      </div>
+
+      <div class="card">
+        <h3>Hero vs Monsters — Maze Clash</h3>
+        <p>Move a hero through a procedurally-generated maze and fight monsters. If your HP is higher than a monster's, you defeat it and absorb its HP; if not, the game ends. Features: maze size &amp; density, mobile controls, sound, confetti, and persistent best score.</p>
+        <a href="/monster/" target="_blank" rel="noopener">Play Hero vs Monsters</a>
+        <div class="meta">URL: /monster/</div>
+      </div>
+
+    </div>
+
+    <footer>
+      This site is hosted from the <a href="https://github.com/Luz2all/Luz2all.github.io" target="_blank" rel="noopener">Luz2all.github.io</a> repository on GitHub Pages. If you want more games or improvements (leaderboards, sound options, or sharing), open an issue in the repo.
+    </footer>
   </div>
 </body>
 </html>
