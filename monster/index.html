@@ -152,16 +152,10 @@
   </div>
 
 <script>
-/* Enhanced Hero vs Monsters
-  Enhancements:
-   - Smooth hero movement animation
-   - Confetti particle effect on defeating monsters
-   - Sound effects via WebAudio (no external files)
-   - Haptic feedback on mobile (vibrate on win/lose)
-   - Persistent best defeated stored in localStorage
-   - Option to change tie rule (hero wins if equal)
-   - Overlays on game end with restart
-   - Settings (volume)
+/* Enhanced Hero vs Monsters with fixed movement animation
+   - Movement is animated per-frame inside the main loop
+   - Input is ignored while a move animation is in progress
+   - Combat is resolved after the move animation finishes
 */
 
 (() => {
@@ -184,7 +178,11 @@
 
   // Animated hero position for smooth movement
   let heroPx = { x:0, y:0 };
-  let heroMoving = false;
+  let moveAnimating = false;
+  let moveFrom = null;
+  let moveTo = null;
+  let moveStart = 0;
+  const MOVE_DURATION = 140; // ms
 
   // Particles (confetti)
   const particles = [];
@@ -225,7 +223,6 @@
   }
 
   function vibrate(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
-
   function clamp(v,a,b){ return Math.max(a,Math.min(b,v)) }
 
   function generateMaze(w,h){
@@ -256,62 +253,50 @@
     maze = generateMaze(GRID_W, GRID_H);
     hero = { r:1, c:1, hp: Math.max(10, Math.floor(Math.random()*6) + 8) };
     if(maze[hero.r][hero.c] !== 1){ outer: for(let r=1;r<GRID_H-1;r++){ for(let c=1;c<GRID_W-1;c++){ if(maze[r][c]===1){ hero.r=r; hero.c=c; break outer; } } } }
-    defeated = 0; movesCount = 0; gameOver=false; showPath=false; pathCells=[]; placeMonsters(); updateUI(); snapHero(); render();
+    defeated = 0; movesCount = 0; gameOver=false; showPath=false; pathCells=[]; placeMonsters(); updateUI(); snapHeroPos(); render();
   }
 
-  function snapHero(){ const p = cellToPixel(hero.r, hero.c); heroPx.x = p.x; heroPx.y = p.y; }
+  function snapHeroPos(){ const p = cellToPixel(hero.r,hero.c); heroPx.x = p.x; heroPx.y = p.y; }
 
   function updateUI(){ heroHpText.textContent = hero.hp; const cap = Math.max(20, hero.hp); const pct = clamp((hero.hp/cap)*100,5,100); heroHpBar.style.width = pct + '%'; if(hero.hp < 8) heroHpBar.style.background = 'linear-gradient(90deg,var(--danger),#fb7185)'; else heroHpBar.style.background = 'linear-gradient(90deg,var(--accent),#06b6a4)'; monstersLeftEl.textContent = monstersLeft; defeatedEl.textContent = defeated; movesEl.textContent = movesCount; bestDefeatedEl.textContent = localStorage.getItem('best_defeated') || '0'; }
 
   function cellToPixel(r,c){ const margin=24; const totalW=CELL*GRID_W; const totalH=CELL*GRID_H; const startX=(CANVAS_W-totalW)/2; const startY=(CANVAS_H-totalH)/2; const x = startX + c*CELL + CELL/2; const y = startY + r*CELL + CELL/2; return {x,y,startX,startY}; }
 
-  function defeatMonsterAt(r,c){ const key=`${r},${c}`; const m = monsters[key]; if(!m) return; hero.hp += m.hp; delete monsters[key]; monstersLeft--; defeated++; spawnConfetti(cellToPixel(r,c).x, cellToPixel(r,c).y); playTone(880,0.08,'triangle',0.12); vibrate(40); flashCell(r,c,'#0ea5a4'); const best = parseInt(localStorage.getItem('best_defeated')||'0',10); if(defeated > best) localStorage.setItem('best_defeated', defeated); }
-
-  function loseToMonsterAt(r,c){ playTone(120,0.5,'sawtooth',0.18); vibrate([80,40,80]); flashCell(r,c,'rgba(240,60,60,0.9)'); gameOver=true; showOverlay('Defeated', `You were defeated by a stronger monster (HP ${monsters[`${r},${c}`].hp}).`); }
-
-  function tryMove(dr,dc){ if(gameOver) return; const nr=hero.r+dr, nc=hero.c+dc; if(nr<0||nc<0||nr>=GRID_H||nc>=GRID_W) return; if(maze[nr][nc]===0) return; // wall
-    // animate movement
-    const prev = {r:hero.r,c:hero.c}; hero.r=nr; hero.c=nc; movesCount++; updateUI(); heroMoving=true; const target = cellToPixel(nr,nc);
-    // handle monsters after move completes (we'll schedule check)
-    const key = `${nr},${nc}`;
-    animateHeroTo(target.x, target.y, 120).then(()=>{
-      heroMoving=false;
-      if(monsters[key]){
-        const m=monsters[key]; const tieHeroWins = tieRuleCheckbox.checked; if(m.hp < hero.hp || (tieHeroWins && m.hp === hero.hp)){ defeatMonsterAt(nr,nc); if(monstersLeft===0){ setTimeout(()=> showOverlay('Victory', 'All monsters defeated — you are the champion!'), 200); }} else { loseToMonsterAt(nr,nc); }
-      }
-      updateUI(); if(showPath) computeShortestPath();
-    });
-  }
-
-  // Hero animation helper returns Promise
-  function animateHeroTo(tx,ty,duration){ return new Promise(resolve=>{ const sx=heroPx.x, sy=heroPx.y; const start=performance.now(); function step(t){ const p = clamp((t-start)/duration,0,1); const ease = p<0.5?2*p*p: -1 + (4-2*p)*p; heroPx.x = sx + (tx-sx)*ease; heroPx.y = sy + (ty-sy)*ease; if(p<1) requestAnimationFrame(step); else { heroPx.x=tx; heroPx.y=ty; resolve(); } } requestAnimationFrame(step); }); }
-
-  // Particles confetti
   function spawnConfetti(x,y){ for(let i=0;i<36;i++){ particles.push({x, y, vx:(Math.random()-0.5)*6, vy:(Math.random()-1.5)*6, life: 60 + Math.random()*30, col: `hsl(${Math.random()*60+180},80%,60%)`}); } }
-
-  // Flash cells
   let flashes = []; function flashCell(r,c,color){ flashes.push({r,c,color,t:0}); }
 
-  // Shortest path BFS
-  function computeShortestPath(){ pathCells = []; const start=[hero.r,hero.c]; const q=[start]; const visited=new Set([`${start[0]},${start[1]}`]); const parent={}; let found=null; const dirs=[[1,0],[-1,0],[0,1],[0,-1]]; while(q.length){ const [r,c]=q.shift(); const key=`${r},${c}`; if(monsters[key]){ const m=monsters[key]; const tieHeroWins = tieRuleCheckbox.checked; if(m.hp < hero.hp || (tieHeroWins && m.hp===hero.hp)){ found=[r,c]; break; } } for(const d of dirs){ const nr=r+d[0], nc=c+d[1]; if(nr<0||nc<0||nr>=GRID_H||nc>=GRID_W) continue; const k2=`${nr},${nc}`; if(visited.has(k2)) continue; if(maze[nr][nc]===0) continue; visited.add(k2); parent[k2]=key; q.push([nr,nc]); } }
-    if(found){ let cur = `${found[0]},${found[1]}`; while(cur){ const parts = cur.split(',').map(Number); pathCells.push(parts); cur = parent[cur]; } pathCells.reverse(); }
+  function defeatMonsterAt(r,c){ const key=`${r},${c}`; const m = monsters[key]; if(!m) return; hero.hp += m.hp; delete monsters[key]; monstersLeft--; defeated++; spawnConfetti(cellToPixel(r,c).x, cellToPixel(r,c).y); playTone(880,0.08,'triangle',0.12); vibrate(40); flashCell(r,c,'#0ea5a4'); const best = parseInt(localStorage.getItem('best_defeated')||'0',10); if(defeated > best) localStorage.setItem('best_defeated', defeated); }
+  function loseToMonsterAt(r,c){ playTone(120,0.5,'sawtooth',0.18); vibrate([80,40,80]); flashCell(r,c,'rgba(240,60,60,0.9)'); gameOver=true; showOverlay('Defeated', `You were defeated by a stronger monster (HP ${monsters[`${r},${c}`].hp}).`); }
+
+  function tryMove(dr,dc){ if(gameOver) return; if(moveAnimating) return; const nr = hero.r + dr, nc = hero.c + dc; if(nr<0||nc<0||nr>=GRID_H||nc>=GRID_W) return; if(maze[nr][nc]===0) return; // wall
+    // start movement animation
+    moveFrom = { r: hero.r, c: hero.c };
+    moveTo = { r: nr, c: nc };
+    moveStart = performance.now();
+    moveAnimating = true;
+    movesCount++;
+    updateUI();
   }
+
+  // After movement completes, resolve combat (if any)
+  function resolveAfterMove(){ const key = `${hero.r},${hero.c}`; if(monsters[key]){ const m = monsters[key]; const tieHeroWins = tieRuleCheckbox.checked; if(m.hp < hero.hp || (tieHeroWins && m.hp === hero.hp)){ defeatMonsterAt(hero.r, hero.c); if(monstersLeft === 0){ setTimeout(()=> showOverlay('Victory', 'All monsters defeated — you are the champion!'), 200); } } else { loseToMonsterAt(hero.r, hero.c); } } if(showPath) computeShortestPath(); updateUI(); }
+
+  // Shortest path BFS
+  function computeShortestPath(){ pathCells = []; const start=[hero.r,hero.c]; const q=[start]; const visited=new Set([`${start[0]},${start[1]}`]); const parent={}; let found=null; const dirs=[[1,0],[-1,0],[0,1],[0,-1]]; while(q.length){ const [r,c]=q.shift(); const key=`${r},${c}`; if(monsters[key]){ const m=monsters[key]; const tieHeroWins = tieRuleCheckbox.checked; if(m.hp < hero.hp || (tieHeroWins && m.hp===hero.hp)){ found=[r,c]; break; } } for(const d of dirs){ const nr=r+d[0], nc=c+d[1]; if(nr<0||nc<0||nr>=GRID_H||nc>=GRID_W) continue; const k2=`${nr},${nc}`; if(visited.has(k2)) continue; if(maze[nr][nc]===0) continue; visited.add(k2); parent[k2]=key; q.push([nr,nc]); } } if(found){ let cur = `${found[0]},${found[1]}`; while(cur){ const parts = cur.split(',').map(Number); pathCells.push(parts); cur = parent[cur]; } pathCells.reverse(); } }
 
   // Overlay
   function showOverlay(title, sub){ overlayText.textContent = title; overlaySub.textContent = sub; overlay.style.display='flex'; }
   function hideOverlay(){ overlay.style.display='none'; }
-
-  overlayRestart.addEventListener('click', ()=>{ hideOverlay(); startNewGame(); });
-  overlayClose.addEventListener('click', ()=>{ hideOverlay(); });
+  overlayRestart.addEventListener('click', ()=>{ hideOverlay(); startNewGame(); }); overlayClose.addEventListener('click', ()=>{ hideOverlay(); });
 
   // Input
-  let lastKeyTime=0; window.addEventListener('keydown',(e)=>{ const now=Date.now(); if(now-lastKeyTime<90) return; lastKeyTime=now; if(gameOver) return; switch(e.key){ case 'ArrowUp': tryMove(-1,0); break; case 'ArrowDown': tryMove(1,0); break; case 'ArrowLeft': tryMove(0,-1); break; case 'ArrowRight': tryMove(0,1); break; case 'w': case 'W': tryMove(-1,0); break; case 's': case 'S': tryMove(1,0); break; case 'a': case 'A': tryMove(0,-1); break; case 'd': case 'D': tryMove(0,1); break; } });
+  let lastKeyTime = 0; window.addEventListener('keydown', (e)=>{ const now = Date.now(); if(now - lastKeyTime < 90) return; lastKeyTime = now; switch(e.key){ case 'ArrowUp': tryMove(-1,0); break; case 'ArrowDown': tryMove(1,0); break; case 'ArrowLeft': tryMove(0,-1); break; case 'ArrowRight': tryMove(0,1); break; case 'w': case 'W': tryMove(-1,0); break; case 's': case 'S': tryMove(1,0); break; case 'a': case 'A': tryMove(0,-1); break; case 'd': case 'D': tryMove(0,1); break; } });
 
   // Mobile controls
   document.getElementById('mobileControls').querySelectorAll('button').forEach(btn=>{ btn.addEventListener('touchstart',ev=>{ ev.preventDefault(); handleDir(btn.getAttribute('data-dir')); },{passive:false}); btn.addEventListener('mousedown',()=>handleDir(btn.getAttribute('data-dir'))); }); function handleDir(dir){ if(gameOver) return; switch(dir){ case 'up': tryMove(-1,0); break; case 'down': tryMove(1,0); break; case 'left': tryMove(0,-1); break; case 'right': tryMove(0,1); break; } }
 
   // Touch swipe
-  let touchStart=null; canvas.addEventListener('touchstart', e=>{ if(e.touches.length===1){ const t=e.touches[0]; touchStart={x:t.clientX,y:t.clientY,time:Date.now()}; } },{passive:true}); canvas.addEventListener('touchend', e=>{ if(touchStart && e.changedTouches[0]){ const t=e.changedTouches[0]; const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y, absX=Math.abs(dx), absY=Math.abs(dy); if(Math.max(absX,absY)>20){ if(absX>absY){ if(dx>0) tryMove(0,1); else tryMove(0,-1); } else { if(dy>0) tryMove(1,0); else tryMove(-1,0); } } touchStart=null; } },{passive:true});
+  let touchStart = null; canvas.addEventListener('touchstart', e=>{ if(e.touches.length===1){ const t=e.touches[0]; touchStart={x:t.clientX,y:t.clientY,time:Date.now()}; } },{passive:true}); canvas.addEventListener('touchend', e=>{ if(touchStart && e.changedTouches[0]){ const t=e.changedTouches[0]; const dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y, absX = Math.abs(dx), absY = Math.abs(dy); if(Math.max(absX,absY) > 20){ if(absX > absY){ if(dx>0) tryMove(0,1); else tryMove(0,-1); } else { if(dy>0) tryMove(1,0); else tryMove(-1,0); } } touchStart = null; } },{passive:true});
 
   // Buttons
   newGameBtn.addEventListener('click', ()=> startNewGame()); shuffleBtn.addEventListener('click', ()=>{ placeMonsters(); updateUI(); render(); playTone(660,0.08,'sine',0.12); }); sizeSelect.addEventListener('change', ()=> startNewGame()); densitySelect.addEventListener('change', ()=> startNewGame()); hintBtn.addEventListener('click', ()=>{ showPath = !showPath; if(showPath) computeShortestPath(); hintBtn.textContent = showPath ? 'Hide Path' : 'Show Shortest Path'; render(); }); saveBtn.addEventListener('click', ()=>{ const url = canvas.toDataURL(); const w = window.open(''); w.document.write(`<img src="${url}" alt="Snapshot">`); });
@@ -329,18 +314,20 @@
     for(const key in monsters){ const [r,c]=key.split(',').map(Number); const {x,y}=cellToPixel(r,c); ctx.beginPath(); ctx.fillStyle='#fb923c'; ctx.arc(x,y,CELL*0.36,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#041321'; ctx.fillText(String(monsters[key].hp), x, y); }
     for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; ctx.fillStyle=p.col; ctx.fillRect(p.x, p.y, 4, 6); p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life--; if(p.life<=0) particles.splice(i,1); }
     for(let i=flashes.length-1;i>=0;i--){ const f=flashes[i]; f.t += 1/60; const alpha = Math.max(0,1 - f.t/0.6); const {x,y} = cellToPixel(f.r,f.c); ctx.globalAlpha = alpha; ctx.fillStyle = f.color; ctx.fillRect(x - CELL/2, y - CELL/2, CELL, CELL); ctx.globalAlpha = 1; if(f.t > 0.6) flashes.splice(i,1); }
+
+    // update hero animation (if animating)
+    if(moveAnimating && moveFrom && moveTo){ const now = performance.now(); const t = clamp((now - moveStart)/MOVE_DURATION, 0, 1); const ease = t<0.5?2*t*t: -1 + (4-2*t)*t; const pFrom = cellToPixel(moveFrom.r, moveFrom.c); const pTo = cellToPixel(moveTo.r, moveTo.c); heroPx.x = pFrom.x + (pTo.x - pFrom.x) * ease; heroPx.y = pFrom.y + (pTo.y - pFrom.y) * ease; if(t >= 1){ // finish movement
+        moveAnimating = false; hero.r = moveTo.r; hero.c = moveTo.c; // resolve combat now
+        resolveAfterMove(); } }
+
     const heroPos = { x: heroPx.x, y: heroPx.y };
     ctx.save(); ctx.beginPath(); ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.ellipse(heroPos.x, heroPos.y + CELL*0.36, CELL*0.5, CELL*0.18, 0,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.fillStyle='#7dd3fc'; ctx.arc(heroPos.x, heroPos.y, CELL*0.38,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#04202a'; ctx.font=`${Math.max(12,CELL*0.4)}px bold sans-serif`; ctx.fillText('H', heroPos.x, heroPos.y+1); ctx.restore(); ctx.strokeStyle='rgba(255,255,255,0.03)'; ctx.strokeRect(startX+0.5,startY+0.5,totalW-1,totalH-1); }
-
-  // Spawn initial hero pixel pos
-  function snapHeroPos(){ const p = cellToPixel(hero.r,hero.c); heroPx.x = p.x; heroPx.y = p.y; }
 
   // Game end overlay helper
   function onWinSummary(){ const best = parseInt(localStorage.getItem('best_defeated')||'0',10); overlayText.textContent = 'Victory!'; overlaySub.textContent = `Monsters defeated: ${defeated}. Best: ${best}.`; showOverlay(overlayText.textContent, overlaySub.textContent); }
 
-  // Play loop
-  function loop(){ // update particles simple physics handled in render
-    render(); requestAnimationFrame(loop); }
+  // main loop
+  function loop(){ render(); requestAnimationFrame(loop); }
 
   // init
   resizeCanvas(); startNewGame(); snapHeroPos(); requestAnimationFrame(loop);
