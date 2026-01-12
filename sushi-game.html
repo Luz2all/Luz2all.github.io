@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sushi Balloon Chef — silly, fast, and shareable!</title>
+  <meta name="description" content="Sushi Balloon Chef — a tiny funny one-page game (static) by Luz2all. Pop the sushi balloons into the pan and avoid the rotten ones!" />
+  <style>
+    :root{--bg:#0b1220;--panel:#0f1724;--accent:#ff6b6b;--muted:#9aa6b2;--glass:rgba(255,255,255,0.04)}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:linear-gradient(180deg,#071022 0%, #07142a 60%); color:#e6f0ff}
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:28px}
+    .card{width:100%;max-width:980px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.6);display:grid;grid-template-columns:1fr 360px;gap:16px}
+    header{display:flex;align-items:center;gap:12px}
+    h1{font-size:20px;margin:0}
+    .subtitle{color:var(--muted);font-size:13px}
+    canvas{width:100%;height:580px;background:linear-gradient(180deg,#072032 0%, #0b2036 100%);border-radius:10px;display:block}
+    .panel{background:var(--panel);padding:12px;border-radius:10px;color:#eaf3ff}
+    .score{font-size:40px;font-weight:700;color:var(--accent);text-align:center}
+    .row{display:flex;gap:8px;align-items:center}
+    button{background:var(--glass);border:1px solid rgba(255,255,255,0.05);color:inherit;padding:10px 12px;border-radius:8px;cursor:pointer}
+    button.primary{background:linear-gradient(90deg,#ff7b7b,#ffb86b);color:#08101a;border:0}
+    .small{font-size:12px;color:var(--muted)}
+    .stat{display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
+    .bigbtn{display:block;width:100%;padding:12px 14px;text-align:center;font-weight:700;border-radius:10px}
+    .footer{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+    @media(max-width:980px){.card{grid-template-columns:1fr;}.panel{order:-1}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="application" aria-label="Sushi Balloon Chef game">
+      <div>
+        <header>
+          <div style="font-size:34px">🍣👩‍🍳</div>
+          <div>
+            <h1>Sushi Balloon Chef</h1>
+            <div class="subtitle">Pop sushi, feed the pan, avoid the rotten bits — 60s rounds. High scores saved locally.</div>
+          </div>
+        </header>
+
+        <main style="margin-top:12px">
+          <canvas id="game" width="800" height="580" tabindex="0"></canvas>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <div class="small">Tap/click balloons to drop them into the pan. Try for combos!</div>
+            <div class="small">Accessible: use keyboard (space) to drop when a balloon is highlighted.</div>
+          </div>
+        </main>
+      </div>
+
+      <aside class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div>
+            <div class="small">Score</div>
+            <div class="score" id="score">0</div>
+          </div>
+          <div style="text-align:right">
+            <div class="small">Time</div>
+            <div style="font-weight:700;font-size:22px" id="time">60</div>
+          </div>
+        </div>
+
+        <div class="stat"><span>Lives</span><strong id="lives">3</strong></div>
+        <div class="stat"><span>Combo</span><strong id="combo">x1</strong></div>
+        <div class="stat"><span>High</span><strong id="high">0</strong></div>
+
+        <div style="margin-top:10px">
+          <button id="startBtn" class="bigbtn primary">Start round</button>
+          <button id="pauseBtn" class="bigbtn" style="margin-top:8px">Pause</button>
+          <button id="shareBtn" class="bigbtn" style="margin-top:8px">Share score</button>
+        </div>
+
+        <div style="margin-top:10px">
+          <div class="small">Ingredients</div>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <div style="padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">🍣 Sushi (good)</div>
+            <div style="padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">🍤 Shrimp (bonus)</div>
+            <div style="padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">🐙 Octo (worth)</div>
+            <div style="padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">💩 Rotten (avoid)</div>
+          </div>
+        </div>
+
+        <div class="footer">Made with ❤️ — static page game. Visit <a href="/" style="color:#9fe7ff">home</a>.</div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+  // Sushi Balloon Chef — single-file static game
+  (()=>{
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width, H = canvas.height;
+
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('time');
+    const livesEl = document.getElementById('lives');
+    const comboEl = document.getElementById('combo');
+    const highEl = document.getElementById('high');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const shareBtn = document.getElementById('shareBtn');
+
+    const ROUND_SECONDS = 60;
+    let state = 'idle'; // idle, running, paused, ended
+    let score = 0, high = 0, timeLeft = ROUND_SECONDS, lives = 3, combo = 1;
+    let lastSpawn = 0, spawnInterval = 900; // ms
+    let balloons = [];
+    let lastFrame = 0;
+    let highlightedIndex = 0;
+
+    const ingredients = [
+      {emoji: '🍣', type: 'good', value: 10},
+      {emoji: '🍤', type: 'bonus', value: 20},
+      {emoji: '🐙', type: 'good', value: 15},
+      {emoji: '💩', type: 'bad', value: -20},
+      {emoji: '🦀', type: 'good', value: 12}
+    ];
+
+    function saveHigh(){
+      try{ localStorage.setItem('sushi-high', String(high)); }catch(e){}
+    }
+    function loadHigh(){
+      try{ high = parseInt(localStorage.getItem('sushi-high')||'0')||0; }catch(e){high=0}
+      highEl.textContent = high;
+    }
+
+    function rand(min,max){return Math.random()*(max-min)+min}
+
+    function spawn(){
+      const pick = ingredients[Math.floor(Math.random()*ingredients.length)];
+      const x = rand(60, W-60);
+      const y = H + 40;
+      const vy = -rand(1.6, 3.2);
+      const vx = rand(-0.6,0.6);
+      const life = rand(7000,14000); // ms to live
+      balloons.push({x,y,vx,vy,emoji:pick.emoji,type:pick.type,value:pick.value,created:Date.now(),life});
+    }
+
+    function reset(){
+      score = 0; timeLeft = ROUND_SECONDS; lives = 3; combo = 1; balloons = []; lastSpawn = 0; highlightedIndex = 0;
+      scoreEl.textContent = '0'; timeEl.textContent = String(timeLeft); livesEl.textContent = String(lives); comboEl.textContent = 'x1';
+    }
+
+    function start(){
+      if(state === 'running') return;
+      reset(); state='running'; lastFrame = performance.now(); requestAnimationFrame(loop);
+      startBtn.textContent = 'Restart round';
+    }
+    function pause(){
+      if(state==='running'){state='paused'; pauseBtn.textContent='Resume';}
+      else if(state==='paused'){state='running'; pauseBtn.textContent='Pause'; lastFrame=performance.now(); requestAnimationFrame(loop);}    
+    function endRound(){
+      state='ended'; if(score>high){high=score; highEl.textContent=high; saveHigh(); alert('New high score! ' + high);} else {alert('Time! You scored ' + score);}    
+    }
+
+    function dropBall(i){
+      const b = balloons[i];
+      if(!b) return;
+      // if good => add score, if bad => lose life
+      if(b.type === 'bad'){
+        // comically bad
+        score = Math.max(0, score + b.value);
+        lives -= 1;
+        combo = 1;
+        spawnBurst(b.x, b.y, '#7a5', 18);
+      } else {
+        const gained = Math.round(b.value * combo);
+        score += gained;
+        combo = Math.min(8, combo + 0.2);
+        spawnBurst(b.x, b.y, '#ffdf7a', 12);
+      }
+      balloons.splice(i,1);
+      updateUI();
+    }
+
+    function updateUI(){
+      scoreEl.textContent = String(score);
+      livesEl.textContent = String(lives);
+      comboEl.textContent = 'x' + Math.max(1, Math.floor(combo*10)/10);
+    }
+
+    // Visual effects
+    let particles = [];
+    function spawnBurst(x,y,color,count){
+      for(let i=0;i<count;i++) particles.push({x,y,vx:rand(-3,3),vy:rand(-6,-1),life:rand(400,1100),t:0,color});
+    }
+
+    function drawRoundedRect(x,y,w,h,r){
+      ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+    }
+
+    function loop(ts){
+      if(state !== 'running') return;
+      const dt = ts - lastFrame; lastFrame = ts;
+      // spawn timing
+      lastSpawn += dt;
+      if(lastSpawn > spawnInterval){ spawn(); lastSpawn = 0; spawnInterval = Math.max(350, 900 - Math.min(700, score*0.4)); }
+
+      // update time
+      timeLeft -= dt/1000;
+      if(timeLeft <= 0){ timeLeft = 0; timeEl.textContent = '0'; endRound(); return; }
+      timeEl.textContent = String(Math.ceil(timeLeft));
+
+      // physics
+      for(let i=balloons.length-1;i>=0;i--){
+        const b = balloons[i];
+        b.x += b.vx * dt/16; b.y += b.vy * dt/16; b.vy += 0.04 * dt/16; // gravity weaker
+        // remove if too old
+        if(Date.now() - b.created > b.life || b.y < -80) balloons.splice(i,1);
+      }
+
+      for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.t+=dt; if(p.t>p.life) particles.splice(i,1); p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; }
+
+      // clear
+      ctx.clearRect(0,0,W,H);
+      // background sea
+      const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#083041'); g.addColorStop(1,'#04202e'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+      // draw balloons
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='36px serif';
+      for(let i=0;i<balloons.length;i++){
+        const b = balloons[i];
+        // balloon shadow
+        ctx.globalAlpha = 0.25; ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(b.x+6,b.y+12,36,20,0,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        drawRoundedRect(b.x-38, b.y-44, 76, 88, 40);
+        ctx.fillStyle = 'rgba(255,255,255,0.02)'; ctx.fill();
+        // string
+        ctx.beginPath(); ctx.moveTo(b.x, b.y+44); ctx.lineTo(b.x, b.y+70); ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=2; ctx.stroke();
+        // emoji
+        ctx.font='42px serif'; ctx.fillText(b.emoji, b.x, b.y-2);
+      }
+
+      // draw pan
+      const panW = 260, panH = 70; const panX = W - panW - 40, panY = H - panH - 30;
+      // pan base
+      ctx.fillStyle='#12151a'; drawRoundedRect(panX, panY, panW, panH, 18); ctx.fill();
+      // pan rim
+      ctx.strokeStyle='#ffffff22'; ctx.lineWidth=3; drawRoundedRect(panX, panY-8, panW, panH+12, 22); ctx.stroke();
+      // steam
+      for(let i=0;i<5;i++){ ctx.globalAlpha = 0.08 + 0.04*Math.sin(ts/200 + i); ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.ellipse(panX+40 + i*40, panY-8 - (i%2)*6, 16, 24, 0, 0, Math.PI*2); ctx.fill(); }
+      ctx.globalAlpha=1;
+
+      // particles
+      for(const p of particles){ ctx.globalAlpha = 1 - p.t/p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 4,4); }
+      ctx.globalAlpha = 1;
+
+      // score HUD inside canvas (small)
+      ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(16,12,180,56);
+      ctx.fillStyle='#fff'; ctx.font='14px sans-serif'; ctx.fillText('Score: ' + score, 26, 32);
+      ctx.fillText('Lives: ' + lives, 26, 52);
+
+      // highlight nearest balloon to pan center (for keyboard control)
+      if(balloons.length>0){
+        let nearest = 0, nd = 1e9;
+        const targetX = panX + panW/2, targetY = panY + 10;
+        for(let i=0;i<balloons.length;i++){ const d = Math.hypot(balloons[i].x-targetX, balloons[i].y-targetY); if(d<nd){nd=d; nearest=i;} }
+        highlightedIndex = nearest;
+        // outline
+        const b = balloons[nearest]; ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(b.x, b.y-4, 46, 54, 0, 0, Math.PI*2); ctx.stroke();
+      }
+
+      updateUI();
+
+      if(lives<=0){ endRound(); return; }
+
+      requestAnimationFrame(loop);
+    }
+
+    // input
+    canvas.addEventListener('click',(e)=>{
+      const rect = canvas.getBoundingClientRect(); const x = (e.clientX-rect.left)*(canvas.width/rect.width); const y = (e.clientY-rect.top)*(canvas.height/rect.height);
+      // find topmost balloon under pointer
+      for(let i=balloons.length-1;i>=0;i--){ const b=balloons[i]; if(Math.abs(b.x-x)<56 && Math.abs(b.y-y)<66){ dropBall(i); return; } }
+      // else drop highlighted
+      if(highlightedIndex!=null) dropBall(highlightedIndex);
+    });
+
+    // keyboard: space to drop
+    window.addEventListener('keydown',(e)=>{
+      if(e.code==='Space'){ e.preventDefault(); if(state==='running'){ if(balloons.length>0) dropBall(highlightedIndex); } else if(state!=='running'){ start(); }}
+      if(e.key==='p'){ pause(); }
+    });
+
+    // buttons
+    startBtn.addEventListener('click', start);
+    pauseBtn.addEventListener('click', pause);
+    shareBtn.addEventListener('click', ()=>{
+      const txt = `I scored ${score} points in Sushi Balloon Chef — can you beat me? ${location.origin + location.pathname.replace(/[^/]*$/,'') }sushi-game.html`;
+      navigator.clipboard?.writeText(txt).then(()=>{ alert('Score copied to clipboard! Paste to share.'); },()=>{ prompt('Copy your score:', txt); });
+    });
+
+    // resize handling
+    function resize(){
+      // keep canvas drawing buffer stable but scale CSS size
+      const box = canvas.getBoundingClientRect(); const scale = window.devicePixelRatio || 1; const cssW = Math.min(960, Math.max(320, box.width)); canvas.width = Math.floor(cssW * scale); canvas.height = Math.floor(580 * scale); W=canvas.width; H=canvas.height; ctx.setTransform(scale,0,0,scale,0,0);
+    }
+    window.addEventListener('resize', ()=>{ resize(); });
+    resize();
+
+    // initial
+    loadHigh(); updateUI();
+    // tiny welcome animation
+    ctx.font='28px sans-serif'; ctx.fillStyle='#fff'; ctx.fillText('Click Start to play Sushi Balloon Chef!', 40, 80);
+
+  })();
+  </script>
+
+</body>
+</html>
