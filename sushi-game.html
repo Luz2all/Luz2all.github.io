@@ -3,308 +3,294 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sushi Balloon Chef — silly, fast, and shareable!</title>
-  <meta name="description" content="Sushi Balloon Chef — a tiny funny one-page game (static) by Luz2all. Pop the sushi balloons into the pan and avoid the rotten ones!" />
+  <title>Sushi Stack — Lightweight Game</title>
   <style>
-    :root{--bg:#0b1220;--panel:#0f1724;--accent:#ff6b6b;--muted:#9aa6b2;--glass:rgba(255,255,255,0.04)}
-    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:linear-gradient(180deg,#071022 0%, #07142a 60%); color:#e6f0ff}
-    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:28px}
-    .card{width:100%;max-width:980px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.6);display:grid;grid-template-columns:1fr 360px;gap:16px}
-    header{display:flex;align-items:center;gap:12px}
+    :root{--bg:#0b1221;--card:#071226;--accent:#ff6b6b;--muted:#9aa4b2}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(180deg,#071226 0%, #071a2b 60%, #0b1221 100%);color:#e6eef6}
+    .wrap{max-width:900px;margin:24px auto;padding:16px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
     h1{font-size:20px;margin:0}
-    .subtitle{color:var(--muted);font-size:13px}
-    canvas{width:100%;height:580px;background:linear-gradient(180deg,#072032 0%, #0b2036 100%);border-radius:10px;display:block}
-    .panel{background:var(--panel);padding:12px;border-radius:10px;color:#eaf3ff}
-    .score{font-size:40px;font-weight:700;color:var(--accent);text-align:center}
-    .row{display:flex;gap:8px;align-items:center}
-    button{background:var(--glass);border:1px solid rgba(255,255,255,0.05);color:inherit;padding:10px 12px;border-radius:8px;cursor:pointer}
-    button.primary{background:linear-gradient(90deg,#ff7b7b,#ffb86b);color:#08101a;border:0}
-    .small{font-size:12px;color:var(--muted)}
-    .stat{display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
-    .bigbtn{display:block;width:100%;padding:12px 14px;text-align:center;font-weight:700;border-radius:10px}
-    .footer{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
-    @media(max-width:980px){.card{grid-template-columns:1fr;}.panel{order:-1}}
+    .controls{display:flex;gap:8px;align-items:center}
+    button{background:var(--card);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px 10px;border-radius:8px;cursor:pointer}
+    button.primary{background:linear-gradient(90deg,var(--accent),#ff9b6b);color:#071226;font-weight:600}
+    .panel{display:flex;gap:12px;margin-top:14px}
+    .game-card{flex:1;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(2,8,23,0.6);position:relative}
+    canvas{display:block;background:linear-gradient(180deg,#0b1a2a,#072033);border-radius:8px;width:100%;height:420px}
+    .hud{display:flex;gap:8px;align-items:center;margin-top:10px}
+    .stat{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;font-size:14px}
+    .leaderboard{width:260px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:12px}
+    .leaderboard h3{margin:0 0 8px 0;font-size:15px}
+    ul.scores{list-style:none;padding:0;margin:0;max-height:320px;overflow:auto}
+    ul.scores li{display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px dashed rgba(255,255,255,0.02);font-size:14px}
+    .mobile-drop{position:fixed;right:14px;bottom:84px;background:linear-gradient(180deg,#ff8b6b,#ff5b5b);color:#071226;border-radius:999px;padding:14px 16px;font-weight:700;box-shadow:0 10px 30px rgba(255,91,91,0.18);z-index:30}
+    .mute-toggle{display:flex;align-items:center;gap:8px}
+    .tutorial-overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,6,23,0.7), rgba(2,6,23,0.9));display:flex;align-items:center;justify-content:center;z-index:50}
+    .tutorial{background:linear-gradient(180deg,#071226,#07172a);padding:20px;border-radius:12px;width:min(720px,94%);text-align:center;animation:pop .6s cubic-bezier(.2,.9,.2,1);box-shadow:0 18px 40px rgba(0,0,0,0.6)}
+    .tutorial h2{margin-top:0}
+    .tutorial p{color:var(--muted);line-height:1.4}
+    .tutorial .actions{display:flex;gap:10px;justify-content:center;margin-top:12px}
+    @keyframes pop{0%{transform:translateY(18px) scale(.98);opacity:0}100%{transform:none;opacity:1}}
+    .gesture-tip{position:absolute;left:12px;bottom:22px;color:var(--muted);font-size:13px}
+    .small{font-size:13px;color:var(--muted)}
+    input.name-input{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.6);z-index:60}
+    .modal .box{background:#071226;padding:16px;border-radius:10px;width:320px}
+    footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+    @media (max-width:600px){canvas{height:360px}.mobile-drop{bottom:74px}}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="card" role="application" aria-label="Sushi Balloon Chef game">
-      <div>
-        <header>
-          <div style="font-size:34px">🍣👩‍🍳</div>
-          <div>
-            <h1>Sushi Balloon Chef</h1>
-            <div class="subtitle">Pop sushi, feed the pan, avoid the rotten bits — 60s rounds. High scores saved locally.</div>
-          </div>
-        </header>
+    <header>
+      <h1>Sushi Stack</h1>
+      <div class="controls">
+        <div class="mute-toggle">
+          <label class="small">🔊</label>
+          <button id="muteBtn" title="Toggle sound">Mute</button>
+        </div>
+        <button id="restartBtn" class="primary">New Game</button>
+      </div>
+    </header>
 
-        <main style="margin-top:12px">
-          <canvas id="game" width="800" height="580" tabindex="0"></canvas>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-            <div class="small">Tap/click balloons to drop them into the pan. Try for combos!</div>
-            <div class="small">Accessible: use keyboard (space) to drop when a balloon is highlighted.</div>
-          </div>
-        </main>
+    <div class="panel">
+      <div class="game-card">
+        <canvas id="gameCanvas" width="800" height="480"></canvas>
+        <div class="hud">
+          <div class="stat">Score: <span id="score">0</span></div>
+          <div class="stat">High: <span id="highscore">0</span></div>
+          <div class="stat">Level: <span id="level">1</span></div>
+          <div class="gesture-tip">Tap to drop • Swipe left/right to move</div>
+        </div>
       </div>
 
-      <aside class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div>
-            <div class="small">Score</div>
-            <div class="score" id="score">0</div>
-          </div>
-          <div style="text-align:right">
-            <div class="small">Time</div>
-            <div style="font-weight:700;font-size:22px" id="time">60</div>
-          </div>
+      <aside class="leaderboard">
+        <h3>Local Leaderboard</h3>
+        <ul id="scoresList" class="scores"></ul>
+        <div style="margin-top:10px;display:flex;gap:8px;justify-content:space-between;align-items:center">
+          <small class="small">Stored locally</small>
+          <button id="clearScores">Clear</button>
         </div>
-
-        <div class="stat"><span>Lives</span><strong id="lives">3</strong></div>
-        <div class="stat"><span>Combo</span><strong id="combo">x1</strong></div>
-        <div class="stat"><span>High</span><strong id="high">0</strong></div>
-
-        <div style="margin-top:10px">
-          <button id="startBtn" class="bigbtn primary">Start round</button>
-          <button id="pauseBtn" class="bigbtn" style="margin-top:8px">Pause</button>
-          <button id="shareBtn" class="bigbtn" style="margin-top:8px">Share score</button>
-        </div>
-
-        <div style="margin-top:10px">
-          <div class="small">Ingredients</div>
-          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <div style="padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">🍣 Sushi (good)</div>
-            <div style="padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">🍤 Shrimp (bonus)</div>
-            <div style="padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">🐙 Octo (worth)</div>
-            <div style="padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">💩 Rotten (avoid)</div>
-          </div>
-        </div>
-
-        <div class="footer">Made with ❤️ — static page game. Visit <a href="/" style="color:#9fe7ff">home</a>.</div>
       </aside>
+    </div>
+
+    <footer>Made with ♥ — Tap the floating button to drop quickly on mobile.</footer>
+  </div>
+
+  <button id="mobileDrop" class="mobile-drop" aria-label="Drop">DROP</button>
+
+  <!-- Tutorial overlay (dismiss permanently) -->
+  <div id="tutorialOverlay" class="tutorial-overlay" style="display:none">
+    <div class="tutorial">
+      <h2>How to play</h2>
+      <p>Move the sushi horizontally by swiping or using the left/right keys. Tap or press DROP to drop the sushi and build the highest stack. Align pieces to keep width — misaligned parts are removed. Score more by stacking precisely.</p>
+      <div class="actions">
+        <button id="startBtn" class="primary">Start Game</button>
+        <button id="dismissOnce">Hide for now</button>
+        <button id="neverShow" title="Don't show again">Don't show again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Name prompt modal for high score -->
+  <div id="nameModal" class="modal" style="display:none">
+    <div class="box">
+      <h3 style="margin-top:0">New High Score!</h3>
+      <p class="small">Enter your name to save your score.</p>
+      <input id="playerName" class="name-input" placeholder="Your name" maxlength="20" />
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+        <button id="cancelName">Cancel</button>
+        <button id="saveName" class="primary">Save</button>
+      </div>
     </div>
   </div>
 
   <script>
-  // Sushi Balloon Chef — single-file static game
-  (()=>{
-    const canvas = document.getElementById('game');
+    // Simple sushi stacking game with features requested
+    const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    let W = canvas.width, H = canvas.height;
+    let width = canvas.width; let height = canvas.height;
 
-    const scoreEl = document.getElementById('score');
-    const timeEl = document.getElementById('time');
-    const livesEl = document.getElementById('lives');
-    const comboEl = document.getElementById('combo');
-    const highEl = document.getElementById('high');
+    // Audio using WebAudio for small effects
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = AudioContext ? new AudioContext() : null;
+    let muted = localStorage.getItem('sushi_mute') === 'true';
+    const muteBtn = document.getElementById('muteBtn');
+    function updateMuteUI(){ muteBtn.textContent = muted ? 'Unmute' : 'Mute'; muteBtn.title = muted ? 'Unmute sound' : 'Mute sound'; }
+    updateMuteUI();
+
+    function playBeep(type='click', time=0){
+      if(muted || !audioCtx) return;
+      const now = audioCtx.currentTime + time;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      if(type==='drop'){ o.type='sine'; o.frequency.setValueAtTime(300, now); }
+      else if(type==='score'){ o.type='triangle'; o.frequency.setValueAtTime(720, now); }
+      else { o.type='square'; o.frequency.setValueAtTime(520, now); }
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.12, now+0.005);
+      g.gain.exponentialRampToValueAtTime(0.001, now+0.25);
+      o.start(now); o.stop(now+0.3);
+    }
+
+    muteBtn.addEventListener('click', ()=>{
+      muted = !muted; localStorage.setItem('sushi_mute', muted); updateMuteUI();
+      if(!muted && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', startGame);
+
+    // Leaderboard
+    const scoresKey = 'sushi_local_scores_v1';
+    function loadScores(){ try{ return JSON.parse(localStorage.getItem(scoresKey)) || []; }catch(e){return []} }
+    function saveScores(scores){ localStorage.setItem(scoresKey, JSON.stringify(scores)); }
+    function updateScoresUI(){ const list = document.getElementById('scoresList'); list.innerHTML=''; const s = loadScores(); if(s.length===0){ list.innerHTML='<li style="justify-content:center;color:var(--muted)">No scores yet</li>'; return; } s.forEach((it,i)=>{ const el = document.createElement('li'); el.innerHTML = `<span>#${i+1} ${escapeHtml(it.name)}</span><span>${it.score}</span>`; list.appendChild(el); }); }
+    document.getElementById('clearScores').addEventListener('click', ()=>{ if(confirm('Clear all local leaderboard scores?')){ localStorage.removeItem(scoresKey); updateScoresUI(); } });
+
+    // Name modal elements
+    const nameModal = document.getElementById('nameModal');
+    const playerNameInput = document.getElementById('playerName');
+    const saveNameBtn = document.getElementById('saveName');
+    const cancelNameBtn = document.getElementById('cancelName');
+    let pendingScore = null;
+    saveNameBtn.addEventListener('click', ()=>{ const name = (playerNameInput.value||'Player').trim().substring(0,20); addScore(name, pendingScore); pendingScore=null; nameModal.style.display='none'; });
+    cancelNameBtn.addEventListener('click', ()=>{ pendingScore=null; nameModal.style.display='none'; });
+
+    function escapeHtml(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]); }
+
+    function addScore(name,score){ const scores = loadScores(); scores.push({name,score}); scores.sort((a,b)=>b.score-a.score); if(scores.length>10) scores.length=10; saveScores(scores); updateScoresUI(); }
+
+    // Tutorial overlay control
+    const tutorialOverlay = document.getElementById('tutorialOverlay');
     const startBtn = document.getElementById('startBtn');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const shareBtn = document.getElementById('shareBtn');
+    const dismissOnce = document.getElementById('dismissOnce');
+    const neverShow = document.getElementById('neverShow');
+    const tutorialKey = 'sushi_tutorial_hidden_v1';
+    function showTutorialIfNeeded(){ const hidden = localStorage.getItem(tutorialKey); if(hidden==='true') return; tutorialOverlay.style.display='flex'; }
+    startBtn.addEventListener('click', ()=>{ tutorialOverlay.style.display='none'; startGame(); });
+    dismissOnce.addEventListener('click', ()=>{ tutorialOverlay.style.display='none'; });
+    neverShow.addEventListener('click', ()=>{ localStorage.setItem(tutorialKey,'true'); tutorialOverlay.style.display='none'; });
 
-    const ROUND_SECONDS = 60;
-    let state = 'idle'; // idle, running, paused, ended
-    let score = 0, high = 0, timeLeft = ROUND_SECONDS, lives = 3, combo = 1;
-    let lastSpawn = 0, spawnInterval = 900; // ms
-    let balloons = [];
-    let lastFrame = 0;
-    let highlightedIndex = 0;
+    // Simple game mechanics
+    let stack = []; let current = null; let gameOver=false; let score=0; let level=1; let highscore = parseInt(localStorage.getItem('sushi_highscore')||'0',10);
+    document.getElementById('highscore').textContent = highscore;
+    document.getElementById('score').textContent = '0';
 
-    const ingredients = [
-      {emoji: '🍣', type: 'good', value: 10},
-      {emoji: '🍤', type: 'bonus', value: 20},
-      {emoji: '🐙', type: 'good', value: 15},
-      {emoji: '💩', type: 'bad', value: -20},
-      {emoji: '🦀', type: 'good', value: 12}
-    ];
+    function resetState(){ stack = []; score=0; level=1; gameOver=false; current=null; document.getElementById('score').textContent = score; document.getElementById('level').textContent = level; }
 
-    function saveHigh(){
-      try{ localStorage.setItem('sushi-high', String(high)); }catch(e){}
-    }
-    function loadHigh(){
-      try{ high = parseInt(localStorage.getItem('sushi-high')||'0')||0; }catch(e){high=0}
-      highEl.textContent = high;
+    function startGame(){ resetState(); // start base block
+      const base = {x: width/2 - 120/2, y: height-60, w:120, h:24, color:'#ffd9b3'};
+      stack.push(base);
+      spawnPiece(); playBeep('score'); render();
     }
 
-    function rand(min,max){return Math.random()*(max-min)+min}
+    function spawnPiece(){ const w = Math.max(30, Math.floor(120 - (stack.length-1)*6)); current = {x:40, y:60, w:w, h:24, dir:1, speed:2 + Math.min(6, stack.length*0.15), color:randomColor()}; }
 
-    function spawn(){
-      const pick = ingredients[Math.floor(Math.random()*ingredients.length)];
-      const x = rand(60, W-60);
-      const y = H + 40;
-      const vy = -rand(1.6, 3.2);
-      const vx = rand(-0.6,0.6);
-      const life = rand(7000,14000); // ms to live
-      balloons.push({x,y,vx,vy,emoji:pick.emoji,type:pick.type,value:pick.value,created:Date.now(),life});
+    function randomColor(){ const colors=['#ffd9b3','#ffc0cb','#ffe08a','#c2f0c2','#ffb3b3']; return colors[stack.length % colors.length]; }
+
+    function update(){ if(gameOver) return; // move current horizontally
+      if(!current) return;
+      current.x += current.dir * current.speed;
+      if(current.x <= 8){ current.dir = 1; current.x = 8; }
+      if(current.x + current.w >= width-8){ current.dir = -1; current.x = width - 8 - current.w; }
     }
 
-    function reset(){
-      score = 0; timeLeft = ROUND_SECONDS; lives = 3; combo = 1; balloons = []; lastSpawn = 0; highlightedIndex = 0;
-      scoreEl.textContent = '0'; timeEl.textContent = String(timeLeft); livesEl.textContent = String(lives); comboEl.textContent = 'x1';
+    function dropPiece(){ if(!current || gameOver) return; // drop until hit
+      // simple collision: find topmost stack piece
+      const top = stack[stack.length-1];
+      // align by x
+      const overlap = Math.max(0, Math.min(current.x+current.w, top.x+top.w) - Math.max(current.x, top.x));
+      if(overlap <= 0){ // no overlap -> game over
+        playBeep('drop'); gameOver=true; setTimeout(()=>endGame(),400); return; }
+      // trimmed piece
+      const newW = overlap; const newX = Math.max(current.x, top.x);
+      const trimmed = {x:newX, y:top.y - current.h - 2, w:newW, h:current.h, color:current.color};
+      stack.push(trimmed);
+      score += Math.max(1, Math.floor(newW/5));
+      level = Math.floor(stack.length/5)+1;
+      document.getElementById('score').textContent = score;
+      document.getElementById('level').textContent = level;
+      playBeep('score');
+      if(score > highscore){ highscore = score; localStorage.setItem('sushi_highscore', highscore); document.getElementById('highscore').textContent = highscore; }
+
+      // spawn next piece
+      current = null;
+      setTimeout(()=> spawnPiece(), 260);
     }
 
-    function start(){
-      if(state === 'running') return;
-      reset(); state='running'; lastFrame = performance.now(); requestAnimationFrame(loop);
-      startBtn.textContent = 'Restart round';
-    }
-    function pause(){
-      if(state==='running'){state='paused'; pauseBtn.textContent='Resume';}
-      else if(state==='paused'){state='running'; pauseBtn.textContent='Pause'; lastFrame=performance.now(); requestAnimationFrame(loop);}    
-    function endRound(){
-      state='ended'; if(score>high){high=score; highEl.textContent=high; saveHigh(); alert('New high score! ' + high);} else {alert('Time! You scored ' + score);}    
+    function endGame(){ playBeep('drop'); // check leaderboard
+      const scores = loadScores(); const lowest = scores.length < 10 ? 0 : scores[scores.length-1].score;
+      if(scores.length < 10 || score > lowest){ pendingScore = score; playerNameInput.value = '' ; nameModal.style.display='flex'; playerNameInput.focus(); }
+
+      // show simple overlay: let tutorial be used as replay entry
+      gameOver = true; // allow restart with new game button
     }
 
-    function dropBall(i){
-      const b = balloons[i];
-      if(!b) return;
-      // if good => add score, if bad => lose life
-      if(b.type === 'bad'){
-        // comically bad
-        score = Math.max(0, score + b.value);
-        lives -= 1;
-        combo = 1;
-        spawnBurst(b.x, b.y, '#7a5', 18);
-      } else {
-        const gained = Math.round(b.value * combo);
-        score += gained;
-        combo = Math.min(8, combo + 0.2);
-        spawnBurst(b.x, b.y, '#ffdf7a', 12);
-      }
-      balloons.splice(i,1);
-      updateUI();
-    }
+    function addScore(name,score){ const scores = loadScores(); scores.push({name,score}); scores.sort((a,b)=>b.score-a.score); if(scores.length>10) scores.length=10; saveScores(scores); updateScoresUI(); }
 
-    function updateUI(){
-      scoreEl.textContent = String(score);
-      livesEl.textContent = String(lives);
-      comboEl.textContent = 'x' + Math.max(1, Math.floor(combo*10)/10);
-    }
+    // Input: click/tap to drop; left/right arrows to move
+    canvas.addEventListener('click', ()=>{ dropPiece(); playBeep('click'); if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); });
+    document.getElementById('mobileDrop').addEventListener('click', ()=>{ dropPiece(); playBeep('click'); });
 
-    // Visual effects
-    let particles = [];
-    function spawnBurst(x,y,color,count){
-      for(let i=0;i<count;i++) particles.push({x,y,vx:rand(-3,3),vy:rand(-6,-1),life:rand(400,1100),t:0,color});
-    }
-
-    function drawRoundedRect(x,y,w,h,r){
-      ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
-    }
-
-    function loop(ts){
-      if(state !== 'running') return;
-      const dt = ts - lastFrame; lastFrame = ts;
-      // spawn timing
-      lastSpawn += dt;
-      if(lastSpawn > spawnInterval){ spawn(); lastSpawn = 0; spawnInterval = Math.max(350, 900 - Math.min(700, score*0.4)); }
-
-      // update time
-      timeLeft -= dt/1000;
-      if(timeLeft <= 0){ timeLeft = 0; timeEl.textContent = '0'; endRound(); return; }
-      timeEl.textContent = String(Math.ceil(timeLeft));
-
-      // physics
-      for(let i=balloons.length-1;i>=0;i--){
-        const b = balloons[i];
-        b.x += b.vx * dt/16; b.y += b.vy * dt/16; b.vy += 0.04 * dt/16; // gravity weaker
-        // remove if too old
-        if(Date.now() - b.created > b.life || b.y < -80) balloons.splice(i,1);
-      }
-
-      for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.t+=dt; if(p.t>p.life) particles.splice(i,1); p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; }
-
-      // clear
-      ctx.clearRect(0,0,W,H);
-      // background sea
-      const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#083041'); g.addColorStop(1,'#04202e'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-
-      // draw balloons
-      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='36px serif';
-      for(let i=0;i<balloons.length;i++){
-        const b = balloons[i];
-        // balloon shadow
-        ctx.globalAlpha = 0.25; ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(b.x+6,b.y+12,36,20,0,0,Math.PI*2); ctx.fill();
-        ctx.globalAlpha = 1;
-        drawRoundedRect(b.x-38, b.y-44, 76, 88, 40);
-        ctx.fillStyle = 'rgba(255,255,255,0.02)'; ctx.fill();
-        // string
-        ctx.beginPath(); ctx.moveTo(b.x, b.y+44); ctx.lineTo(b.x, b.y+70); ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=2; ctx.stroke();
-        // emoji
-        ctx.font='42px serif'; ctx.fillText(b.emoji, b.x, b.y-2);
-      }
-
-      // draw pan
-      const panW = 260, panH = 70; const panX = W - panW - 40, panY = H - panH - 30;
-      // pan base
-      ctx.fillStyle='#12151a'; drawRoundedRect(panX, panY, panW, panH, 18); ctx.fill();
-      // pan rim
-      ctx.strokeStyle='#ffffff22'; ctx.lineWidth=3; drawRoundedRect(panX, panY-8, panW, panH+12, 22); ctx.stroke();
-      // steam
-      for(let i=0;i<5;i++){ ctx.globalAlpha = 0.08 + 0.04*Math.sin(ts/200 + i); ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.ellipse(panX+40 + i*40, panY-8 - (i%2)*6, 16, 24, 0, 0, Math.PI*2); ctx.fill(); }
-      ctx.globalAlpha=1;
-
-      // particles
-      for(const p of particles){ ctx.globalAlpha = 1 - p.t/p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 4,4); }
-      ctx.globalAlpha = 1;
-
-      // score HUD inside canvas (small)
-      ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(16,12,180,56);
-      ctx.fillStyle='#fff'; ctx.font='14px sans-serif'; ctx.fillText('Score: ' + score, 26, 32);
-      ctx.fillText('Lives: ' + lives, 26, 52);
-
-      // highlight nearest balloon to pan center (for keyboard control)
-      if(balloons.length>0){
-        let nearest = 0, nd = 1e9;
-        const targetX = panX + panW/2, targetY = panY + 10;
-        for(let i=0;i<balloons.length;i++){ const d = Math.hypot(balloons[i].x-targetX, balloons[i].y-targetY); if(d<nd){nd=d; nearest=i;} }
-        highlightedIndex = nearest;
-        // outline
-        const b = balloons[nearest]; ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(b.x, b.y-4, 46, 54, 0, 0, Math.PI*2); ctx.stroke();
-      }
-
-      updateUI();
-
-      if(lives<=0){ endRound(); return; }
-
-      requestAnimationFrame(loop);
-    }
-
-    // input
-    canvas.addEventListener('click',(e)=>{
-      const rect = canvas.getBoundingClientRect(); const x = (e.clientX-rect.left)*(canvas.width/rect.width); const y = (e.clientY-rect.top)*(canvas.height/rect.height);
-      // find topmost balloon under pointer
-      for(let i=balloons.length-1;i>=0;i--){ const b=balloons[i]; if(Math.abs(b.x-x)<56 && Math.abs(b.y-y)<66){ dropBall(i); return; } }
-      // else drop highlighted
-      if(highlightedIndex!=null) dropBall(highlightedIndex);
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='ArrowLeft'){ if(current) current.x -= 18; }
+      if(e.key==='ArrowRight'){ if(current) current.x += 18; }
+      if(e.key===' ' || e.key==='Spacebar'){ dropPiece(); }
     });
 
-    // keyboard: space to drop
-    window.addEventListener('keydown',(e)=>{
-      if(e.code==='Space'){ e.preventDefault(); if(state==='running'){ if(balloons.length>0) dropBall(highlightedIndex); } else if(state!=='running'){ start(); }}
-      if(e.key==='p'){ pause(); }
-    });
+    // Touch gestures: swipe left/right to move, tap to drop
+    let touchStartX=null, touchStartY=null, touchMoved=false;
+    canvas.addEventListener('touchstart', (e)=>{ const t=e.touches[0]; touchStartX=t.clientX; touchStartY=t.clientY; touchMoved=false; if(audioCtx && audioCtx.state==='suspended' && !muted) audioCtx.resume(); });
+    canvas.addEventListener('touchmove', (e)=>{ const t=e.touches[0]; const dx = t.clientX - touchStartX; if(Math.abs(dx) > 8){ touchMoved=true; if(current) current.x += dx*0.08; touchStartX = t.clientX; } e.preventDefault(); }, {passive:false});
+    canvas.addEventListener('touchend', (e)=>{ if(!touchMoved){ dropPiece(); playBeep('click'); } });
 
-    // buttons
-    startBtn.addEventListener('click', start);
-    pauseBtn.addEventListener('click', pause);
-    shareBtn.addEventListener('click', ()=>{
-      const txt = `I scored ${score} points in Sushi Balloon Chef — can you beat me? ${location.origin + location.pathname.replace(/[^/]*$/,'') }sushi-game.html`;
-      navigator.clipboard?.writeText(txt).then(()=>{ alert('Score copied to clipboard! Paste to share.'); },()=>{ prompt('Copy your score:', txt); });
-    });
-
-    // resize handling
-    function resize(){
-      // keep canvas drawing buffer stable but scale CSS size
-      const box = canvas.getBoundingClientRect(); const scale = window.devicePixelRatio || 1; const cssW = Math.min(960, Math.max(320, box.width)); canvas.width = Math.floor(cssW * scale); canvas.height = Math.floor(580 * scale); W=canvas.width; H=canvas.height; ctx.setTransform(scale,0,0,scale,0,0);
+    // Simple render loop
+    function render(){ ctx.clearRect(0,0,width,height);
+      // background subtle grid
+      ctx.fillStyle='rgba(255,255,255,0.02)';
+      for(let i=0;i<width;i+=40){ ctx.fillRect(i,0,1,height);} for(let j=0;j<height;j+=40){ ctx.fillRect(0,j,width,1); }
+      // draw stack
+      for(let i=0;i<stack.length;i++){ const s=stack[i]; drawBlock(s); }
+      // draw current
+      if(current){ drawBlock(current, true); }
+      // score text
+      ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(6,6,200,36); ctx.fillStyle='#e9f2ff'; ctx.font='18px Inter, Arial'; ctx.fillText('Sushi Stack', 12, 30);
+      requestAnimationFrame(render);
     }
-    window.addEventListener('resize', ()=>{ resize(); });
-    resize();
 
-    // initial
-    loadHigh(); updateUI();
-    // tiny welcome animation
-    ctx.font='28px sans-serif'; ctx.fillStyle='#fff'; ctx.fillText('Click Start to play Sushi Balloon Chef!', 40, 80);
+    function drawBlock(b, pulse=false){ const rx = Math.round(b.x), ry = Math.round(b.y), rw = Math.round(b.w), rh = Math.round(b.h);
+      // shadow
+      ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.fillRect(rx+4, ry+6, rw, rh);
+      // block
+      const g = ctx.createLinearGradient(rx, ry, rx, ry+rh); g.addColorStop(0, shade(b.color, 0.06)); g.addColorStop(1, shade(b.color, -0.06)); ctx.fillStyle=g; ctx.fillRect(rx, ry, rw, rh);
+      // sushi detail
+      ctx.fillStyle='rgba(255,255,255,0.08)'; ctx.fillRect(rx+8, ry+4, Math.max(8, rw-16), Math.max(6, rh-8));
+      if(pulse){ ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=2; ctx.strokeRect(rx+1,ry+1,rw-2,rh-2); }
+    }
 
-  })();
+    function shade(hex, percent){ // simple shade for gradient
+      const c = hex.replace('#',''); const num = parseInt(c,16); const r = Math.min(255, Math.max(0, (num>>16) + Math.floor(255*percent))); const g = Math.min(255, Math.max(0, ((num>>8)&0xFF) + Math.floor(255*percent))); const b = Math.min(255, Math.max(0, (num&0xFF) + Math.floor(255*percent))); return `rgb(${r},${g},${b})`; }
+
+    // initial setup
+    updateScoresUI(); showTutorialIfNeeded(); render();
+
+    // autoresize canvas to device pixel ratio
+    function resizeCanvas(){ const ratio = window.devicePixelRatio||1; const w = canvas.clientWidth; const h = canvas.clientHeight; canvas.width = Math.floor(w*ratio); canvas.height = Math.floor(h*ratio); canvas.style.width = w+'px'; canvas.style.height = h+'px'; ctx.setTransform(ratio,0,0,ratio,0,0); width = w; height = h; }
+    window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+    // helper: ensure audio context resumed on user gesture
+    document.body.addEventListener('pointerdown', ()=>{ if(audioCtx && audioCtx.state === 'suspended' && !muted) audioCtx.resume(); }, {once:true});
+
+    // expose some helpers for debugging
+    window.sushiGame = { startGame, addScore, loadScores };
+
+    // Start by showing tutorial and spawn base when Start clicked
+    // If tutorial previously hidden, start immediately
+    if(localStorage.getItem(tutorialKey)==='true') startGame();
+
+    // Small UX: hide mobile drop if device not touch
+    if(!('ontouchstart' in window)) document.getElementById('mobileDrop').style.display='none';
+
   </script>
-
 </body>
 </html>
