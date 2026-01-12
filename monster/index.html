@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hero vs Monsters — Luz2all</title>
+  <style>
+    :root{
+      --bg:#0f1724; --panel:#071027; --accent:#26a69a; --danger:#ef4444;
+      --muted:#94a3b8; --tile:#0b1a2b; --wall:#092032; --text:#e6eef6;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071025,#081430);color:var(--text)}
+    .wrap{width:100%;max-width:1000px;padding:18px;box-sizing:border-box}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px}
+    h1{margin:0;font-size:20px}
+    .controls{display:flex;gap:8px;align-items:center}
+    .btn{background:var(--accent);color:#042022;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    .btn.secondary{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.06)}
+    .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:10px;display:flex;gap:12px;align-items:center;box-shadow:0 6px 30px rgba(2,6,23,0.6)}
+    .left{display:flex;gap:12px;align-items:center}
+    .stats{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:13px}
+    .big{font-weight:700;color:var(--text)}
+    .container{display:flex;gap:14px;flex-wrap:wrap}
+    .canvas-wrap{background:var(--panel);padding:12px;border-radius:10px;flex:1 1 640px;min-width:320px}
+    canvas{display:block;border-radius:8px;background:linear-gradient(180deg,#071827,#0b2132);width:100%;height:auto}
+    .right{width:260px;min-width:220px}
+    .legend{font-size:13px;color:var(--muted);margin-top:8px}
+    .hpbar{height:12px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden}
+    .hpinner{height:100%;background:linear-gradient(90deg,var(--accent),#06b6a4);width:100%}
+    .danger{background:linear-gradient(90deg,var(--danger),#fb7185)}
+    .controls-row{display:flex;gap:8px;margin-top:8px}
+    .hint{font-size:13px;color:var(--muted);margin-top:10px}
+    .footer{margin-top:12px;color:var(--muted);font-size:13px}
+    .mobile-controls{display:none;gap:8px;margin-top:10px}
+    .mobile-controls button{width:56px;height:56px;border-radius:10px;font-size:18px;border:none;background:rgba(255,255,255,0.035);color:var(--text)}
+    @media (max-width:880px){ .container{flex-direction:column} .right{width:100%} .mobile-controls{display:flex;justify-content:center} canvas{height:480px} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="left">
+        <h1>Hero vs Monsters — Maze Clash</h1>
+        <div class="panel">
+          <div style="display:flex;flex-direction:column;margin-right:8px">
+            <div class="muted" style="font-size:12px;color:var(--muted)">Hero HP</div>
+            <div class="hpbar" style="width:140px">
+              <div id="heroHpBar" class="hpinner" style="width:100%"></div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <div class="muted" style="font-size:12px;color:var(--muted)">Monsters left</div>
+            <div class="big" id="monstersLeft">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="newGame">New Game</button>
+        <button class="btn secondary" id="shuffle">Shuffle Monsters</button>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="canvas-wrap panel">
+        <canvas id="gameCanvas" width="800" height="640"></canvas>
+        <div class="hint">Move with arrow keys or WASD. Move into a monster tile to fight.<br>
+          If monster HP &lt; hero HP you win and absorb their HP. If monster HP &ge; hero HP you lose (equal counts as losing).</div>
+
+        <div class="mobile-controls" id="mobileControls" aria-hidden="true" style="margin-top:12px">
+          <button data-dir="up">↑</button>
+          <div style="display:flex;gap:8px">
+            <button data-dir="left">←</button>
+            <button data-dir="down">↓</button>
+            <button data-dir="right">→</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="panel" style="flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700">Game Info</div>
+            <div style="font-size:13px;color:var(--muted)">v1</div>
+          </div>
+
+          <div style="margin-top:8px" class="stats">
+            <div>Hero HP: <span id="heroHpText" class="big">0</span></div>
+            <div>Monsters defeated: <span id="defeated" class="big">0</span></div>
+            <div>Moves: <span id="moves" class="big">0</span></div>
+          </div>
+
+          <div class="controls-row">
+            <label style="color:var(--muted);font-size:13px">
+              Maze size:
+              <select id="sizeSelect" style="background:transparent;color:var(--text);border:none;padding:6px;border-radius:6px">
+                <option value="15">Small (15x15)</option>
+                <option value="25" selected>Medium (25x25)</option>
+                <option value="35">Large (35x35)</option>
+              </select>
+            </label>
+            <label style="color:var(--muted);font-size:13px">
+              Monster density:
+              <select id="densitySelect" style="background:transparent;color:var(--text);border:none;padding:6px;border-radius:6px">
+                <option value="0.06">Light</option>
+                <option value="0.10" selected>Normal</option>
+                <option value="0.18">Dense</option>
+              </select>
+            </label>
+          </div>
+
+          <div style="margin-top:10px" class="legend">
+            Legend:<br>
+            <span style="display:inline-block;width:12px;height:12px;background:#7dd3fc;border-radius:2px;margin-right:6px"></span> Hero<br>
+            <span style="display:inline-block;width:12px;height:12px;background:#f97316;border-radius:2px;margin-right:6px"></span> Monster (number = HP)<br>
+            <span style="display:inline-block;width:12px;height:12px;background:var(--wall);border-radius:2px;margin-right:6px"></span> Wall / blocked
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn" id="hintBtn">Show Shortest Path</button>
+            <button class="btn secondary" id="saveBtn">Save Snapshot</button>
+          </div>
+
+        </div>
+
+        <div class="footer">Want this published to your Pages site? Tell me and I can add it to <code>Luz2all.github.io/monster/</code>.</div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+/*
+  Hero vs Monsters - Maze game
+  - Maze generated with recursive backtracker (odd-sized grid).
+  - Cells: passages where hero and monsters can be.
+  - Player moves tile-by-tile. Entering a monster tile triggers combat:
+      if monster.hp < hero.hp => hero wins and gains monster.hp (monster removed)
+      else => hero loses (game over). (Equal HP counts as losing.)
+  - UI includes hero HP, monsters left, defeated count, moves.
+  - Options: maze size and monster density.
+  - Controls: arrow keys / WASD, on-screen buttons (mobile).
+*/
+
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let CANVAS_W = canvas.width, CANVAS_H = canvas.height;
+
+  // Config / state
+  let CELL = 20; // pixels (will be recomputed)
+  let GRID_W = 25, GRID_H = 25; // cells (must be odd to work with maze generator)
+  let density = 0.10;
+  let maze = []; // 2D array: 0 wall, 1 passage
+  let monsters = {}; // key "r,c" -> {hp}
+  let hero = { r:1, c:1, hp: 12 };
+  let monstersLeft = 0;
+  let defeated = 0;
+  let movesCount = 0;
+  let gameOver = false;
+  let showPath = false;
+  let pathCells = [];
+
+  // UI elements
+  const heroHpBar = document.getElementById('heroHpBar');
+  const heroHpText = document.getElementById('heroHpText');
+  const monstersLeftEl = document.getElementById('monstersLeft');
+  const defeatedEl = document.getElementById('defeated');
+  const movesEl = document.getElementById('moves');
+  const newGameBtn = document.getElementById('newGame');
+  const shuffleBtn = document.getElementById('shuffle');
+  const sizeSelect = document.getElementById('sizeSelect');
+  const densitySelect = document.getElementById('densitySelect');
+  const hintBtn = document.getElementById('hintBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const mobileControls = document.getElementById('mobileControls');
+
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)) }
+
+  // Maze generator (recursive backtracker)
+  function generateMaze(w,h){
+    // w,h should be odd
+    const grid = Array.from({length:h}, ()=>Array.from({length:w}, ()=>0));
+    function inBounds(r,c){ return r>0 && r<h-1 && c>0 && c<w-1 }
+    // start at (1,1)
+    const stack = [[1,1]];
+    grid[1][1] = 1;
+    const dirs = [[0,-2],[0,2],[-2,0],[2,0]];
+    while(stack.length){
+      const [r,c] = stack[stack.length-1];
+      const neigh = [];
+      for(const d of dirs){
+        const nr = r + d[0], nc = c + d[1];
+        if(inBounds(nr,nc) && grid[nr][nc]===0) neigh.push(d);
+      }
+      if(neigh.length===0){
+        stack.pop();
+      } else {
+        const d = neigh[Math.floor(Math.random()*neigh.length)];
+        const nr = r + d[0], nc = c + d[1];
+        grid[r + d[0]/2][c + d[1]/2] = 1; // knock down wall between
+        grid[nr][nc] = 1;
+        stack.push([nr,nc]);
+      }
+    }
+    return grid;
+  }
+
+  // Place monsters in random passage cells
+  function placeMonsters(){
+    monsters = {};
+    monstersLeft = 0;
+    for(let r=1;r<GRID_H-1;r++){
+      for(let c=1;c<GRID_W-1;c++){
+        if(maze[r][c]===1 && !(r===hero.r && c===hero.c)){
+          if(Math.random() < density){
+            // HP scaled by area: larger mazes have monsters up to higher HP
+            const maxHp = Math.max(6, Math.floor(Math.min(GRID_W, GRID_H)/2) + 8);
+            const hp = 1 + Math.floor(Math.random()*maxHp);
+            monsters[`${r},${c}`] = { hp };
+            monstersLeft++;
+          }
+        }
+      }
+    }
+  }
+
+  function startNewGame(){
+    // Read options
+    const size = parseInt(sizeSelect.value,10);
+    GRID_W = size;
+    GRID_H = size;
+    // ensure odd
+    if(GRID_W % 2 === 0) GRID_W++;
+    if(GRID_H % 2 === 0) GRID_H++;
+    density = parseFloat(densitySelect.value);
+
+    // compute CELL size to fit canvas while keeping margins
+    const margin = 24;
+    const availableW = CANVAS_W - margin*2;
+    const availableH = CANVAS_H - margin*2;
+    CELL = Math.floor(Math.min(availableW / GRID_W, availableH / GRID_H));
+    // adjust canvas display size while keeping drawing buffer
+    // but canvas actual size remains CANVAS_W x CANVAS_H, we draw scaled.
+
+    maze = generateMaze(GRID_W, GRID_H);
+
+    // place hero at first passage found (1,1 or nearest)
+    hero = { r:1, c:1, hp: Math.max(10, Math.floor(Math.random()*6) + 8) };
+
+    // ensure starting cell is passage; otherwise find a passage near center
+    if(maze[hero.r][hero.c] !== 1){
+      outer: for(let r=1;r<GRID_H-1;r++){
+        for(let c=1;c<GRID_W-1;c++){
+          if(maze[r][c]===1){ hero.r=r; hero.c=c; break outer; }
+        }
+      }
+    }
+
+    defeated = 0;
+    movesCount = 0;
+    gameOver = false;
+    showPath = false;
+    pathCells = [];
+
+    placeMonsters();
+
+    updateUI();
+    render();
+  }
+
+  function updateUI(){
+    heroHpText.textContent = hero.hp;
+    // HP bar scaled with reasonable cap for width (cap at e.g., 200 HP)
+    const cap = Math.max(20, hero.hp);
+    const pct = clamp((hero.hp / cap) * 100, 5, 100);
+    heroHpBar.style.width = pct + '%';
+    if(hero.hp < 8) heroHpBar.style.background = 'linear-gradient(90deg,var(--danger),#fb7185)';
+    else heroHpBar.style.background = 'linear-gradient(90deg,var(--accent),#06b6a4)';
+    monstersLeftEl.textContent = monstersLeft;
+    defeatedEl.textContent = defeated;
+    movesEl.textContent = movesCount;
+  }
+
+  // Convert grid cell to pixel coords (center)
+  function cellToPixel(r,c){
+    const margin = 24;
+    const totalW = CELL * GRID_W;
+    const totalH = CELL * GRID_H;
+    const startX = (CANVAS_W - totalW) / 2;
+    const startY = (CANVAS_H - totalH) / 2;
+    const x = startX + c * CELL + CELL/2;
+    const y = startY + r * CELL + CELL/2;
+    return { x, y, startX, startY };
+  }
+
+  // Movement and combat
+  function tryMove(dr,dc){
+    if(gameOver) return;
+    const nr = hero.r + dr, nc = hero.c + dc;
+    if(nr<0 || nc<0 || nr>=GRID_H || nc>=GRID_W) return;
+    if(maze[nr][nc]===0) return; // wall
+    // move hero
+    hero.r = nr; hero.c = nc;
+    movesCount++;
+    const key = `${nr},${nc}`;
+    if(monsters[key]){
+      const m = monsters[key];
+      // combat rule: if monster.hp < hero.hp => hero wins; else hero loses (equal counts as losing)
+      if(m.hp < hero.hp){
+        // hero wins
+        hero.hp += m.hp;
+        delete monsters[key];
+        monstersLeft--;
+        defeated++;
+        // small animation / pop (we'll render with flash)
+        flashCell(nr,nc, '#0ea5a4');
+        // if all monsters gone -> you win (but can keep playing)
+        if(monstersLeft === 0){
+          setTimeout(()=>{ alert('All monsters defeated! You are the champion!'); }, 120);
+        }
+      } else {
+        // hero loses
+        gameOver = true;
+        flashCell(nr,nc, 'rgba(240,60,60,0.9)');
+        setTimeout(()=>{ alert('You were defeated by a stronger monster. Game Over.'); }, 120);
+      }
+    }
+    updateUI();
+    if(showPath) computeShortestPath();
+    render();
+  }
+
+  // Flash cell effect
+  let flashes = [];
+  function flashCell(r,c,color){
+    flashes.push({r,c,color, t:0});
+  }
+
+  // Simple shortest-path (BFS) from hero to nearest monster with hp < hero.hp (for hint)
+  function computeShortestPath(){
+    pathCells = [];
+    const start = [hero.r, hero.c];
+    const q = [start];
+    const visited = new Set([`${start[0]},${start[1]}`]);
+    const parent = {};
+    let found = null;
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    while(q.length){
+      const [r,c] = q.shift();
+      const key = `${r},${c}`;
+      if(monsters[key]){
+        const m = monsters[key];
+        if(m.hp < hero.hp){
+          found = [r,c];
+          break;
+        }
+      }
+      for(const d of dirs){
+        const nr = r + d[0], nc = c + d[1];
+        if(nr<0||nc<0||nr>=GRID_H||nc>=GRID_W) continue;
+        const k2 = `${nr},${nc}`;
+        if(visited.has(k2)) continue;
+        if(maze[nr][nc]===0) continue;
+        visited.add(k2);
+        parent[k2] = key;
+        q.push([nr,nc]);
+      }
+    }
+    if(found){
+      let cur = `${found[0]},${found[1]}`;
+      while(cur){
+        const parts = cur.split(',').map(Number);
+        pathCells.push(parts);
+        cur = parent[cur];
+      }
+      pathCells.reverse();
+    }
+  }
+
+  // Render
+  function render(){
+    // clear
+    ctx.clearRect(0,0,CANVAS_W,CANVAS_H);
+
+    // background
+    ctx.fillStyle = "#041321";
+    ctx.fillRect(0,0,CANVAS_W,CANVAS_H);
+
+    // draw grid
+    const totalW = CELL * GRID_W;
+    const totalH = CELL * GRID_H;
+    const startX = (CANVAS_W - totalW) / 2;
+    const startY = (CANVAS_H - totalH) / 2;
+
+    // draw cells
+    for(let r=0;r<GRID_H;r++){
+      for(let c=0;c<GRID_W;c++){
+        const x = startX + c*CELL;
+        const y = startY + r*CELL;
+        if(maze[r][c] === 0){
+          // wall
+          ctx.fillStyle = 'rgba(255,255,255,0.03)';
+          ctx.fillRect(x, y, CELL, CELL);
+        } else {
+          // floor
+          ctx.fillStyle = '#06202d';
+          ctx.fillRect(x, y, CELL, CELL);
+          // subtle inner
+          ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+          ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1);
+        }
+      }
+    }
+
+    // highlight path hint
+    if(showPath && pathCells.length){
+      ctx.fillStyle = 'rgba(45,212,191,0.08)';
+      for(const [r,c] of pathCells){
+        const x = startX + c*CELL;
+        const y = startY + r*CELL;
+        ctx.fillRect(x+2, y+2, CELL-4, CELL-4);
+      }
+    }
+
+    // draw monsters
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.max(10,CELL*0.4)}px bold sans-serif`;
+    for(const key in monsters){
+      const [r,c] = key.split(',').map(Number);
+      const { x, y } = cellToPixel(r,c);
+      // monster circle
+      ctx.beginPath();
+      ctx.fillStyle = '#fb923c'; // orange
+      ctx.arc(x, y, CELL*0.36, 0, Math.PI*2);
+      ctx.fill();
+      // HP number
+      ctx.fillStyle = '#041321';
+      ctx.fillText(String(monsters[key].hp), x, y);
+    }
+
+    // flashes
+    for(let i=flashes.length-1;i>=0;i--){
+      const f = flashes[i];
+      f.t += 1/60;
+      const alpha = Math.max(0, 1 - f.t/0.6);
+      const { x, y } = cellToPixel(f.r,f.c);
+      ctx.fillStyle = f.color.replace(')', `,${alpha})`).replace('rgb','rgba');
+      // if color not rgba form fallback
+      try{
+        ctx.fillStyle = f.color;
+      }catch(e){}
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(x - CELL/2, y - CELL/2, CELL, CELL);
+      ctx.globalAlpha = 1;
+      if(f.t > 0.6) flashes.splice(i,1);
+    }
+
+    // draw hero (circle with glow)
+    const heroPos = cellToPixel(hero.r, hero.c);
+    ctx.save();
+    // shadow
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.ellipse(heroPos.x, heroPos.y + CELL*0.36, CELL*0.5, CELL*0.18, 0, 0, Math.PI*2);
+    ctx.fill();
+    // hero body
+    ctx.beginPath();
+    ctx.fillStyle = '#7dd3fc';
+    ctx.arc(heroPos.x, heroPos.y, CELL*0.38, 0, Math.PI*2);
+    ctx.fill();
+    // hero label "H"
+    ctx.fillStyle = '#04202a';
+    ctx.font = `${Math.max(12, CELL*0.4)}px bold sans-serif`;
+    ctx.fillText('H', heroPos.x, heroPos.y+1);
+    ctx.restore();
+
+    // grid border
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.strokeRect(startX+0.5, startY+0.5, totalW-1, totalH-1);
+  }
+
+  // Input handling
+  let lastKeyTime = 0;
+  window.addEventListener('keydown', (e)=>{
+    const now = Date.now();
+    // simple debounce to avoid repeated fast moves
+    if(now - lastKeyTime < 90) return;
+    lastKeyTime = now;
+    if(gameOver) return;
+    switch(e.key){
+      case 'ArrowUp': tryMove(-1,0); break;
+      case 'ArrowDown': tryMove(1,0); break;
+      case 'ArrowLeft': tryMove(0,-1); break;
+      case 'ArrowRight': tryMove(0,1); break;
+      case 'w': case 'W': tryMove(-1,0); break;
+      case 's': case 'S': tryMove(1,0); break;
+      case 'a': case 'A': tryMove(0,-1); break;
+      case 'd': case 'D': tryMove(0,1); break;
+    }
+  });
+
+  // Mobile controls
+  mobileControls.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('touchstart', (ev)=>{ ev.preventDefault(); const dir = btn.getAttribute('data-dir'); handleDir(dir); }, {passive:false});
+    btn.addEventListener('mousedown', (ev)=>{ const dir = btn.getAttribute('data-dir'); handleDir(dir); });
+  });
+  function handleDir(dir){
+    switch(dir){
+      case 'up': tryMove(-1,0); break;
+      case 'down': tryMove(1,0); break;
+      case 'left': tryMove(0,-1); break;
+      case 'right': tryMove(0,1); break;
+    }
+  }
+
+  // Touch swipe controls for mobile (swipe)
+  let touchStart = null;
+  canvas.addEventListener('touchstart', (e)=>{ if(e.touches.length===1){ const t=e.touches[0]; touchStart={x:t.clientX,y:t.clientY, time:Date.now()}; } }, {passive:true});
+  canvas.addEventListener('touchend', (e)=>{ if(touchStart && e.changedTouches[0]){ const t=e.changedTouches[0]; const dx = t.clientX - touchStart.x; const dy = t.clientY - touchStart.y; const absX = Math.abs(dx), absY = Math.abs(dy); if(Math.max(absX,absY) > 20){ if(absX > absY){ if(dx>0) tryMove(0,1); else tryMove(0,-1); } else { if(dy>0) tryMove(1,0); else tryMove(-1,0); } } touchStart=null; } }, {passive:true});
+
+  // Buttons
+  newGameBtn.addEventListener('click', ()=>{ startNewGame(); });
+  shuffleBtn.addEventListener('click', ()=>{ placeMonsters(); updateUI(); render(); });
+  sizeSelect.addEventListener('change', ()=> startNewGame());
+  densitySelect.addEventListener('change', ()=> startNewGame());
+  hintBtn.addEventListener('click', ()=>{
+    showPath = !showPath;
+    if(showPath) computeShortestPath();
+    pathCells = showPath ? pathCells : [];
+    hintBtn.textContent = showPath ? 'Hide Path' : 'Show Shortest Path';
+    render();
+  });
+  saveBtn.addEventListener('click', ()=>{
+    // draw current canvas to dataURL and open in new tab
+    const url = canvas.toDataURL();
+    const w = window.open('');
+    w.document.write(`<img src="${url}" alt="Snapshot">`);
+  });
+
+  // Canvas resizing for high-dpi
+  function resizeCanvas(){
+    const rect = canvas.getBoundingClientRect();
+    CANVAS_W = Math.max(480, Math.floor(rect.width));
+    CANVAS_H = Math.max(360, Math.floor(rect.height));
+    // scale backing store for crisp rendering
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = CANVAS_W * ratio;
+    canvas.height = CANVAS_H * ratio;
+    canvas.style.width = CANVAS_W + 'px';
+    canvas.style.height = CANVAS_H + 'px';
+    ctx.setTransform(ratio,0,0,ratio,0,0);
+    // recompute CELL if maze exists
+    if(GRID_W && GRID_H){
+      const margin = 24;
+      const availableW = CANVAS_W - margin*2;
+      const availableH = CANVAS_H - margin*2;
+      CELL = Math.max(12, Math.floor(Math.min(availableW / GRID_W, availableH / GRID_H)));
+    }
+    render();
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+
+  // initial size and start
+  resizeCanvas();
+  startNewGame();
+
+  // Render loop for animations such as flashes (60fps)
+  function loop(){
+    // update any needed animation state
+    render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+})();
+</script>
+
+</body>
+</html>
