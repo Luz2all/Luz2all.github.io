@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>2048 — Luz2all</title>
+  <style>
+    :root{--bg:#faf8ef;--board:#bbada0;--tile-empty:#cdc1b4;--tile-2:#eee4da;--tile-4:#ede0c8;--tile-8:#f2b179;--tile-16:#f59563;--tile-32:#f67c5f;--tile-64:#f65e3b;--tile-128:#edcf72;--tile-256:#edcc61;--tile-512:#edc850;--tile-1024:#edc53f;--tile-2048:#edc22e;--text-dark:#776e65;--text-light:#f9f6f2}
+    html,body{height:100%}
+    body{margin:0;font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif; background:var(--bg); color:var(--text-dark); display:flex; align-items:center; justify-content:center}
+    .container{width:100%;max-width:500px;padding:20px}
+    h1{margin:0 0 10px;font-size:36px;text-align:left}
+    .controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .score{background:#bbada0;color:var(--text-light);padding:10px 14px;border-radius:4px;font-weight:700}
+    .new-btn{background:#8f7a66;color:var(--text-light);padding:10px 14px;border-radius:4px;border:none;cursor:pointer}
+    .game-area{background:var(--board);padding:15px;border-radius:6px;position:relative}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);grid-gap:15px}
+    .cell{width:100%;padding-top:100%;position:relative;background:var(--tile-empty);border-radius:4px}
+    .tile{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;border-radius:4px;font-weight:700;font-size:28px}
+    .tile.small{font-size:20px}
+    .tile-2{background:var(--tile-2);color:var(--text-dark)}
+    .tile-4{background:var(--tile-4);color:var(--text-dark)}
+    .tile-8{background:var(--tile-8);color:var(--text-light)}
+    .tile-16{background:var(--tile-16);color:var(--text-light)}
+    .tile-32{background:var(--tile-32);color:var(--text-light)}
+    .tile-64{background:var(--tile-64);color:var(--text-light)}
+    .tile-128{background:var(--tile-128);color:var(--text-dark)}
+    .tile-256{background:var(--tile-256);color:var(--text-dark)}
+    .tile-512{background:var(--tile-512);color:var(--text-dark)}
+    .tile-1024{background:var(--tile-1024);color:var(--text-dark)}
+    .tile-2048{background:var(--tile-2048);color:var(--text-dark)}
+    .overlay{position:absolute;inset:0;background:rgba(238,228,218,0.5);display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:24px;color:var(--text-dark);border-radius:6px}
+    .hint{font-size:14px;color:#776e65;margin-top:8px}
+    .footer{margin-top:12px;font-size:13px;color:#8f8a84}
+    @media (max-width:420px){.container{padding:12px}.controls h1{font-size:28px}.tile{font-size:20px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="controls">
+      <h1>2048</h1>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="score" id="score">0</div>
+        <button class="new-btn" id="new">New Game</button>
+      </div>
+    </div>
+
+    <div class="game-area" id="game">
+      <div class="grid" id="grid">
+        <!-- 16 cells will be created by JS -->
+      </div>
+      <div id="overlay" class="overlay" style="display:none">
+        <div id="message"></div>
+        <div class="hint">Press New Game to play again</div>
+      </div>
+    </div>
+
+    <div class="footer">Use arrow keys or swipe to move tiles. Tiles with the same number merge into one when they touch.</div>
+  </div>
+
+  <script>
+    // Simple 2048 implementation (single-file, minimal)
+    const SIZE = 4
+    let board = []
+    let score = 0
+    const gridEl = document.getElementById('grid')
+    const scoreEl = document.getElementById('score')
+    const overlay = document.getElementById('overlay')
+    const message = document.getElementById('message')
+
+    function initDOM(){
+      gridEl.innerHTML = ''
+      for(let i=0;i<SIZE*SIZE;i++){
+        const cell = document.createElement('div')
+        cell.className = 'cell'
+        cell.dataset.index = i
+        gridEl.appendChild(cell)
+      }
+    }
+
+    function reset(){
+      board = Array(SIZE*SIZE).fill(0)
+      score = 0
+      overlay.style.display = 'none'
+      spawnRandom(); spawnRandom();
+      update()
+    }
+
+    function spawnRandom(){
+      const empties = []
+      board.forEach((v,i)=>{ if(v===0) empties.push(i) })
+      if(empties.length===0) return
+      const pos = empties[Math.floor(Math.random()*empties.length)]
+      board[pos] = Math.random() < 0.9 ? 2 : 4
+    }
+
+    function update(){
+      scoreEl.textContent = score
+      const cells = gridEl.children
+      for(let i=0;i<cells.length;i++){
+        const cell = cells[i]
+        cell.innerHTML = ''
+        const val = board[i]
+        if(val!==0){
+          const tile = document.createElement('div')
+          tile.className = 'tile tile-'+val
+          if(String(val).length>3) tile.classList.add('small')
+          tile.textContent = val
+          cell.appendChild(tile)
+        }
+      }
+    }
+
+    // Movement logic
+    function compress(row){
+      const out = row.filter(v=>v!==0)
+      while(out.length<row.length) out.push(0)
+      return out
+    }
+    function merge(row){
+      for(let i=0;i<row.length-1;i++){
+        if(row[i]!==0 && row[i]===row[i+1]){
+          row[i]*=2
+          score += row[i]
+          row[i+1]=0
+        }
+      }
+      return row
+    }
+
+    function moveLeft(){
+      let moved=false
+      for(let r=0;r<SIZE;r++){
+        const row = []
+        for(let c=0;c<SIZE;c++) row.push(board[r*SIZE+c])
+        const compressed = compress(row)
+        const merged = merge(compressed)
+        const finalRow = compress(merged)
+        for(let c=0;c<SIZE;c++){
+          if(board[r*SIZE+c]!==finalRow[c]) moved=true
+          board[r*SIZE+c]=finalRow[c]
+        }
+      }
+      if(moved){ spawnRandom(); update(); checkEnd() }
+    }
+    function moveRight(){
+      let moved=false
+      for(let r=0;r<SIZE;r++){
+        const row = []
+        for(let c=SIZE-1;c>=0;c--) row.push(board[r*SIZE+c])
+        const compressed = compress(row)
+        const merged = merge(compressed)
+        const finalRow = compress(merged)
+        for(let c=SIZE-1, k=0;c>=0;c--,k++){
+          if(board[r*SIZE+c]!==finalRow[k]) moved=true
+          board[r*SIZE+c]=finalRow[k]
+        }
+      }
+      if(moved){ spawnRandom(); update(); checkEnd() }
+    }
+    function moveUp(){
+      let moved=false
+      for(let c=0;c<SIZE;c++){
+        const col=[]
+        for(let r=0;r<SIZE;r++) col.push(board[r*SIZE+c])
+        const compressed = compress(col)
+        const merged = merge(compressed)
+        const finalCol = compress(merged)
+        for(let r=0;r<SIZE;r++){
+          if(board[r*SIZE+c]!==finalCol[r]) moved=true
+          board[r*SIZE+c]=finalCol[r]
+        }
+      }
+      if(moved){ spawnRandom(); update(); checkEnd() }
+    }
+    function moveDown(){
+      let moved=false
+      for(let c=0;c<SIZE;c++){
+        const col=[]
+        for(let r=SIZE-1;r>=0;r--) col.push(board[r*SIZE+c])
+        const compressed = compress(col)
+        const merged = merge(compressed)
+        const finalCol = compress(merged)
+        for(let r=SIZE-1,k=0;r>=0;r--,k++){
+          if(board[r*SIZE+c]!==finalCol[k]) moved=true
+          board[r*SIZE+c]=finalCol[k]
+        }
+      }
+      if(moved){ spawnRandom(); update(); checkEnd() }
+    }
+
+    function checkEnd(){
+      if(board.includes(2048)){
+        overlay.style.display = 'flex'
+        message.textContent = 'You win!'
+        return
+      }
+      if(board.includes(0)) return
+      // check possible merges
+      for(let r=0;r<SIZE;r++){
+        for(let c=0;c<SIZE;c++){
+          const v = board[r*SIZE+c]
+          const neighbors = []
+          if(c<SIZE-1) neighbors.push(board[r*SIZE+c+1])
+          if(r<SIZE-1) neighbors.push(board[(r+1)*SIZE+c])
+          if(neighbors.some(n=>n===v)) return
+        }
+      }
+      overlay.style.display = 'flex'
+      message.textContent = 'Game over'
+    }
+
+    // Controls
+    window.addEventListener('keydown', (e)=>{
+      switch(e.key){
+        case 'ArrowLeft': e.preventDefault(); moveLeft(); break
+        case 'ArrowRight': e.preventDefault(); moveRight(); break
+        case 'ArrowUp': e.preventDefault(); moveUp(); break
+        case 'ArrowDown': e.preventDefault(); moveDown(); break
+      }
+    })
+
+    // Touch / swipe support
+    let touchStart = null
+    gridEl.addEventListener('touchstart', e=>{
+      if(e.touches.length!==1) return
+      const t = e.touches[0]
+      touchStart = {x:t.clientX,y:t.clientY}
+    }, {passive:true})
+    gridEl.addEventListener('touchend', e=>{
+      if(!touchStart) return
+      const t = e.changedTouches[0]
+      const dx = t.clientX - touchStart.x
+      const dy = t.clientY - touchStart.y
+      const absX = Math.abs(dx), absY = Math.abs(dy)
+      const threshold = 20
+      if(Math.max(absX,absY) < threshold) return
+      if(absX>absY){ if(dx>0) moveRight(); else moveLeft() }
+      else{ if(dy>0) moveDown(); else moveUp() }
+      touchStart = null
+    })
+
+    document.getElementById('new').addEventListener('click', reset)
+
+    // Initialize
+    initDOM(); reset();
+  </script>
+</body>
+</html>
